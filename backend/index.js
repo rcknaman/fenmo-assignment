@@ -85,7 +85,7 @@ app.post('/expenses', async (req, res) => {
     try {
         const { id, amount, category, description, date } = req.body;
 
-        // Basic Validation
+        // Basic Validationn
         if (!amount || parseFloat(amount) <= 0) {
             return res.status(400).json({ error: 'Amount must be a positive number' });
         }
