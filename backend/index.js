@@ -89,7 +89,7 @@ app.get('/expenses/summary', authenticateToken, async (req, res) => {
     }
 });
 
-// GET /expenses
+// GET /expensess
 app.get('/expenses', authenticateToken, async (req, res) => {
     try {
         const { category, sort, page = 1, limit = 5 } = req.query;
