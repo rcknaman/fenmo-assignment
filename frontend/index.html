@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinanceFlow | Personal Expense Tracker</title>
+  <meta name="description" content="Track your expenses effortlessly with FinanceFlow. Secure, fast, and beautiful." />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>FinanceFlow</h1>
+      <p style="color: var(--text-muted)">Master your money, one expense at a time.</p>
+    </header>
+
+    <section class="dashboard-grid">
+      <div class="summary-card main-total">
+        <div class="summary-info">
+          <span class="total-label">Current View Total</span>
+          <div class="total-amount" id="totalAmount">₹0.00</div>
+        </div>
+        <div class="summary-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-color)">
+            <path d="M20 12V8H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h14v4" />
+            <path d="M4 6v14a2 2 0 0 0 2 2h14v-4" />
+            <path d="M18 12a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h4v-6h-4z" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="category-summary-scroll">
+        <div id="categorySummary" class="category-summary-container">
+          <!-- Totals per category will be injected here -->
+        </div>
+      </div>
+    </section>
+
+    <section class="expense-form-card">
+      <form id="expenseForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="amount">Amount (₹)</label>
+            <input type="number" id="amount" step="0.01" placeholder="e.g. 1500.00" min="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="category">Category</label>
+            <select id="category" required>
+              <option value="">Select Category</option>
+              <option value="Food">Food & Dining</option>
+              <option value="Transport">Transport</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Bills">Bills & Utilities</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Health">Health</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="date">Date</label>
+            <input type="date" id="date" required />
+          </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <input type="text" id="description" placeholder="What was this for?" required />
+          </div>
+        </div>
+        <p id="formError" class="error-msg" style="display: none;"></p>
+        <button type="submit" class="btn-primary" id="submitBtn">Record Expense</button>
+      </form>
+    </section>
+
+    <div class="controls-bar">
+      <h2 style="font-size: 1.25rem">Recent Expenses</h2>
+      <div style="display: flex; gap: 0.5rem">
+        <select id="filterCategory">
+          <option value="">All Categories</option>
+          <option value="Food">Food</option>
+          <option value="Transport">Transport</option>
+          <option value="Shopping">Shopping</option>
+          <option value="Bills">Bills</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Health">Health</option>
+          <option value="Other">Other</option>
+        </select>
+        <select id="sortDate">
+          <option value="date_desc">Newest First</option>
+          <option value="date_asc">Oldest First</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="expense-list-container">
+      <div id="loadingState" class="loading-shimmer" style="display: none;">
+        <div class="shimmer-item"></div>
+        <div class="shimmer-item"></div>
+        <div class="shimmer-item"></div>
+      </div>
+      <div class="expense-list" id="expenseList">
+        <div class="empty-state">No expenses found.</div>
+      </div>
+    </div>
+
+    <div class="pagination-bar" id="paginationBar">
+      <button id="prevPage" class="btn-secondary" disabled>Previous</button>
+      <span id="pageInfo">Page 1 of 1</span>
+      <button id="nextPage" class="btn-secondary" disabled>Next</button>
+    </div>
+  </div>
+  <script type="module" src="/main.js"></script>
+</body>
+
+</html>
