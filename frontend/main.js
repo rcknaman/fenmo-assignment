@@ -1,5 +1,18 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/expenses';
 
+// Fallback for non-secure contexts (HTTP) where crypto.randomUUID is unavailable
+function safeUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+
 const expenseForm = document.getElementById('expenseForm');
 const expenseList = document.getElementById('expenseList');
 const totalAmountDisplay = document.getElementById('totalAmount');
@@ -132,7 +145,7 @@ expenseForm.addEventListener('submit', async (e) => {
 
     // Reuse ID for retries to ensure idempotency
     if (!currentExpenseId) {
-        currentExpenseId = crypto.randomUUID();
+        currentExpenseId = safeUUID();
     }
 
     const expenseData = {
