@@ -127,7 +127,7 @@ app.get('/expenses', authenticateToken, async (req, res) => {
     }
 });
 
-// POST /expenses
+// POST /expensess
 app.post('/expenses', authenticateToken, async (req, res) => {
     try {
         const { id, amount, category, description, date } = req.body;
