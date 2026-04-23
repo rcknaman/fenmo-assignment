@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/expenses';
+console.log("🚀 FinanceFlow API URL:", API_URL);
 
 // Fallback for non-secure contexts (HTTP) where crypto.randomUUID is unavailable
 function safeUUID() {
