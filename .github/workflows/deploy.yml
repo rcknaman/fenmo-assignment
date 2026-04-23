@@ -44,6 +44,11 @@ jobs:
           username: ubuntu # Change to 'ec2-user' if using Amazon Linux
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu/personal-finance-tool
+            if [ ! -d "/home/ubuntu/fenmo-assignment" ]; then
+              git clone https://github.com/rcknaman/fenmo-assignment.git /home/ubuntu/fenmo-assignment
+            else
+              cd /home/ubuntu/fenmo-assignment && git pull
+            fi
+            cd /home/ubuntu/fenmo-assignment
             docker compose pull
             docker compose up -d
