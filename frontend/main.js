@@ -1,155 +1,181 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/expenses';
-console.log("🚀 FinanceFlow API URL:", API_URL);
+const AUTH_URL = API_URL.replace('/expenses', '');
 
-// Fallback for non-secure contexts (HTTP) where crypto.randomUUID is unavailable
+// Fallback for non-secure contexts (HTTP)
 function safeUUID() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
         const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
     });
 }
 
+// State
+let token = localStorage.getItem('token');
+let isRegisterMode = false;
+let currentExpenseId = null;
+let currentPage = 1;
 
+// Elements
+const authOverlay = document.getElementById('authOverlay');
+const authForm = document.getElementById('authForm');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authError = document.getElementById('authError');
+const toggleAuthMode = document.getElementById('toggleAuthMode');
+const userProfile = document.getElementById('userProfile');
+const userNameDisplay = document.getElementById('userNameDisplay');
+const logoutBtn = document.getElementById('logoutBtn');
 const expenseForm = document.getElementById('expenseForm');
 const expenseList = document.getElementById('expenseList');
 const totalAmountDisplay = document.getElementById('totalAmount');
 const categorySummary = document.getElementById('categorySummary');
 const filterCategory = document.getElementById('filterCategory');
 const sortDate = document.getElementById('sortDate');
-const submitBtn = document.getElementById('submitBtn');
-const formError = document.getElementById('formError');
-const loadingState = document.getElementById('loadingState');
-
 const prevPageBtn = document.getElementById('prevPage');
 const nextPageBtn = document.getElementById('nextPage');
 const pageInfo = document.getElementById('pageInfo');
+const loadingState = document.getElementById('loadingState');
+const submitBtn = document.getElementById('submitBtn');
 
-let currentPage = 1;
-const ITEMS_PER_PAGE = 5;
+// Auth Handlers
+toggleAuthMode.addEventListener('click', (e) => {
+    e.preventDefault();
+    isRegisterMode = !isRegisterMode;
+    document.getElementById('authTitle').textContent = isRegisterMode ? 'Create Account' : 'Welcome to FinanceFlow';
+    document.getElementById('authSubtitle').textContent = isRegisterMode ? 'Join us to start tracking' : 'Please log in to manage your expenses';
+    authSubmitBtn.textContent = isRegisterMode ? 'Register' : 'Login';
+    document.getElementById('toggleText').textContent = isRegisterMode ? 'Already have an account?' : "Don't have an account?";
+    toggleAuthMode.textContent = isRegisterMode ? 'Login' : 'Register';
+    authError.style.display = 'none';
+});
 
-// Initialize date input
-document.getElementById('date').valueAsDate = new Date();
+authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    authError.style.display = 'none';
+    const username = document.getElementById('authUsername').value;
+    const password = document.getElementById('authPassword').value;
+
+    const endpoint = isRegisterMode ? '/register' : '/login';
+
+    try {
+        const response = await fetch(`${AUTH_URL}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Auth failed');
+
+        if (isRegisterMode) {
+            alert('Registered successfully! Please login.');
+            toggleAuthMode.click();
+        } else {
+            token = data.token;
+            localStorage.setItem('token', token);
+            localStorage.setItem('username', data.user.username);
+            onLoginSuccess(data.user.username);
+        }
+    } catch (err) {
+        authError.textContent = err.message;
+        authError.style.display = 'block';
+    }
+});
+
+function onLoginSuccess(username) {
+    authOverlay.style.display = 'none';
+    userProfile.style.display = 'flex';
+    userNameDisplay.textContent = `Hi, ${username}`;
+    initializeApp();
+}
+
+logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    location.reload();
+});
+
+// Expense Logic
+async function fetchExpenses() {
+    loadingState.style.display = 'flex';
+    expenseList.style.display = 'none';
+
+    const cat = filterCategory.value;
+    const sort = sortDate.value;
+    const url = `${API_URL}?page=${currentPage}&limit=5&category=${cat}&sort=${sort}`;
+
+    try {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.status === 401 || response.status === 403) logoutBtn.click();
+
+        const { data, pagination } = await response.json();
+        renderExpenses(data);
+        updatePagination(pagination);
+    } catch (error) {
+        console.error('Fetch error:', error);
+    } finally {
+        loadingState.style.display = 'none';
+        expenseList.style.display = 'block';
+    }
+}
 
 async function fetchSummary() {
     try {
-        const response = await fetch(`${API_URL}/summary`);
-        if (!response.ok) throw new Error('Failed to fetch summary');
-        const summary = await response.json();
-        renderSummary(summary);
-    } catch (error) {
-        console.error('Summary fetch error:', error);
+        const response = await fetch(`${API_URL}/summary`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        renderSummary(data);
+    } catch (err) { console.error('Summary error:', err); }
+}
+
+function renderExpenses(expenses) {
+    if (expenses.length === 0) {
+        expenseList.innerHTML = '<div class="empty-state">No records found.</div>';
+        totalAmountDisplay.textContent = '₹0.00';
+        return;
     }
+
+    let total = 0;
+    expenseList.innerHTML = expenses.map(exp => {
+        total += parseFloat(exp.amount);
+        return `
+            <div class="expense-item">
+                <div class="expense-info">
+                    <div class="expense-category">${exp.category}</div>
+                    <div style="font-weight: 500">${exp.description}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted)">${new Date(exp.date).toLocaleDateString()}</div>
+                </div>
+                <div class="expense-amount">₹${parseFloat(exp.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            </div>
+        `;
+    }).join('');
+    totalAmountDisplay.textContent = `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
 function renderSummary(summary) {
     categorySummary.innerHTML = summary.map(item => `
         <div class="cat-bubble">
             <span class="cat-bubble-name">${item.category}</span>
-            <span class="cat-bubble-amount">₹${parseFloat(item.total).toLocaleString()}</span>
+            <span class="cat-bubble-amount">₹${parseFloat(item.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
         </div>
     `).join('');
 }
 
-async function fetchExpenses() {
-    const category = filterCategory.value;
-    const sort = sortDate.value;
-
-    loadingState.style.display = 'flex';
-    expenseList.style.display = 'none';
-
-    let url = `${API_URL}?page=${currentPage}&limit=${ITEMS_PER_PAGE}&`;
-    if (category) url += `category=${category}&`;
-    if (sort) url += `sort=${sort}`;
-
-    try {
-        const response = await fetch(url);
-        if (response.status === 429) {
-            throw new Error('Rate limit exceeded. Please wait a moment.');
-        }
-        if (!response.ok) throw new Error('Failed to fetch expenses');
-
-        const result = await response.json();
-        renderExpenses(result.data);
-        renderPagination(result.pagination);
-    } catch (error) {
-        console.error(error);
-        expenseList.innerHTML = `<div class="empty-state" style="color: var(--danger-color)">${error.message}</div>`;
-        expenseList.style.display = 'block';
-    } finally {
-        loadingState.style.display = 'none';
-    }
+function updatePagination(p) {
+    pageInfo.textContent = `Page ${p.page} of ${p.totalPages || 1}`;
+    prevPageBtn.disabled = p.page <= 1;
+    nextPageBtn.disabled = p.page >= p.totalPages;
 }
-
-function renderExpenses(expenses) {
-    expenseList.style.display = 'block';
-    if (expenses.length === 0) {
-        expenseList.innerHTML = `<div class="empty-state">No expenses found.</div>`;
-        return;
-    }
-
-    expenseList.innerHTML = expenses.map(exp => `
-        <div class="expense-item" data-id="${exp.id}">
-            <div class="expense-info">
-                <span class="expense-category">${exp.category}</span>
-                <span class="expense-description">${exp.description}</span>
-                <span class="expense-date">${new Date(exp.date).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
-            </div>
-            <div class="expense-amount">₹${parseFloat(exp.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-        </div>
-    `).join('');
-
-    // Update main total based on the entire view (this could be from the summary or a separate calculation)
-    // For simplicity, we'll fetch the summary to update global state
-    updateTotalAmount(expenses);
-}
-
-function updateTotalAmount(expensesInView) {
-    // Note: The total in the summary is more accurate for global state
-    // But requirement says "total of expenses for the current list"
-    const total = expensesInView.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
-    totalAmountDisplay.textContent = `₹${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-}
-
-function renderPagination(pagination) {
-    pageInfo.textContent = `Page ${pagination.page} of ${pagination.totalPages || 1}`;
-    prevPageBtn.disabled = pagination.page <= 1;
-    nextPageBtn.disabled = pagination.page >= pagination.totalPages;
-}
-
-prevPageBtn.addEventListener('click', () => {
-    if (currentPage > 1) {
-        currentPage--;
-        fetchExpenses();
-    }
-});
-
-nextPageBtn.addEventListener('click', () => {
-    currentPage++;
-    fetchExpenses();
-});
-
-let currentExpenseId = null;
 
 expenseForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    formError.style.display = 'none';
-
     const amount = document.getElementById('amount').value;
-    if (parseFloat(amount) <= 0) {
-        showFormError('Amount must be positive');
-        return;
-    }
+    if (!currentExpenseId) currentExpenseId = safeUUID();
 
-    // Reuse ID for retries to ensure idempotency
-    if (!currentExpenseId) {
-        currentExpenseId = safeUUID();
-    }
-
-    const expenseData = {
+    const payload = {
         id: currentExpenseId,
         amount,
         category: document.getElementById('category').value,
@@ -160,46 +186,44 @@ expenseForm.addEventListener('submit', async (e) => {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Recording...';
 
-
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(expenseData)
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error || 'Failed to save expense');
-        }
+        if (!response.ok) throw new Error('Failed to save');
 
-        // Success: Reset ID for the next potentially distinct entry
         currentExpenseId = null;
         expenseForm.reset();
         document.getElementById('date').valueAsDate = new Date();
         currentPage = 1;
         await Promise.all([fetchExpenses(), fetchSummary()]);
-    } catch (error) {
-        showFormError(error.message);
-    } finally {
+    } catch (err) { alert(err.message); }
+    finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Record Expense';
     }
 });
 
-function showFormError(msg) {
-    formError.textContent = msg;
-    formError.style.display = 'block';
+filterCategory.addEventListener('change', () => { currentPage = 1; fetchExpenses(); });
+sortDate.addEventListener('change', () => { currentPage = 1; fetchExpenses(); });
+prevPageBtn.addEventListener('click', () => { currentPage--; fetchExpenses(); });
+nextPageBtn.addEventListener('click', () => { currentPage++; fetchExpenses(); });
+
+function initializeApp() {
+    document.getElementById('date').valueAsDate = new Date();
+    fetchExpenses();
+    fetchSummary();
 }
 
-filterCategory.addEventListener('change', () => {
-    currentPage = 1;
-    fetchExpenses();
-});
-
-sortDate.addEventListener('change', fetchExpenses);
-
-// Initial load
-fetchExpenses();
-fetchSummary();
-setInterval(fetchSummary, 60000); // Update summary every minute
+// Initial session check
+if (token) {
+    onLoginSuccess(localStorage.getItem('username') || 'User');
+} else {
+    authOverlay.style.display = 'flex';
+}

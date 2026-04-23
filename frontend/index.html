@@ -13,9 +13,40 @@
 <body>
   <div class="container">
     <header class="header">
-      <h1>FinanceFlow</h1>
-      <p style="color: var(--text-muted)">Master your money, one expense at a time.</p>
+      <div style="display: flex; justify-content: space-between; align-items: start; width: 100%;">
+        <div>
+          <h1>FinanceFlow</h1>
+          <p style="color: var(--text-muted)">Master your money, one expense at a time.</p>
+        </div>
+        <div id="userProfile" style="display: none; flex-direction: column; align-items: end;">
+          <span id="userNameDisplay" style="font-weight: 600; color: var(--primary-color)"></span>
+          <button id="logoutBtn" class="btn-text">Logout</button>
+        </div>
+      </div>
     </header>
+
+    <div id="authOverlay" class="auth-overlay">
+      <div class="auth-card">
+        <h2 id="authTitle">Welcome to FinanceFlow</h2>
+        <p id="authSubtitle">Please log in to manage your personal expenses</p>
+        <form id="authForm">
+          <div class="form-group">
+            <label for="authUsername">Username</label>
+            <input type="text" id="authUsername" placeholder="Enter username" required />
+          </div>
+          <div class="form-group">
+            <label for="authPassword">Password</label>
+            <input type="password" id="authPassword" placeholder="Enter password" required />
+          </div>
+          <p id="authError" class="error-msg" style="display: none;"></p>
+          <button type="submit" id="authSubmitBtn" class="btn-primary">Login</button>
+        </form>
+        <p class="auth-toggle">
+          <span id="toggleText">Don't have an account?</span>
+          <a href="#" id="toggleAuthMode">Register</a>
+        </p>
+      </div>
+    </div>
 
     <section class="dashboard-grid">
       <div class="summary-card main-total">
